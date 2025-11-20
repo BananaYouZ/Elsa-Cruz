@@ -313,6 +313,7 @@ const App = () => {
                src="https://drive.google.com/uc?export=view&id=1ZOtb2m-ROuKpDxDejbLL8gEZK7Op8AEj" 
                alt="Logo Elsa Cruz" 
                className="h-40 w-auto object-contain drop-shadow-2xl"
+               referrerPolicy="no-referrer"
              />
           </div>
           <h1 className="font-display text-5xl md:text-7xl text-white font-medium tracking-wide mb-6 drop-shadow-lg">
