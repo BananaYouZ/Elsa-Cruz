@@ -13,7 +13,7 @@ const EMAILJS_SERVICE_ID = "service_7n4fupk";
 const EMAILJS_TEMPLATE_ID = "template_htcqtak";
 const EMAILJS_PUBLIC_KEY = "X7k_93aJx_aXL6fbA";
 
-// --- TIPOS E DADOS (Anteriormente em types.ts) ---
+// --- TIPOS E DADOS ---
 export enum EventType {
   CASAMENTO = 'Casamento',
   BATIZADO = 'Batizado',
@@ -46,21 +46,25 @@ export const SERVICE_OPTIONS = [
   "Gestão de Fornecedores"
 ];
 
-// --- SERVIÇO GEMINI AI (Anteriormente em services/geminiService.ts) ---
-// A inicialização foi movida para dentro da função generateConsultationPreview
-// para evitar erros de "API Key missing" no arranque da aplicação.
-
+// --- SERVIÇO GEMINI AI ---
 const generateConsultationPreview = async (data: EventInquiry): Promise<string> => {
-  // Se não houver chave configurada (ex: na Vercel antes de configurar),
-  // retornamos a mensagem padrão sem tentar iniciar a IA para não crashar.
-  if (!process.env.API_KEY) {
+  // Proteção robusta para obter a API Key sem crashar o browser
+  let apiKey = undefined;
+  try {
+    // O vite.config.ts vai substituir 'process.env.API_KEY' pela string da chave real.
+    // Se falhar, o try/catch impede o erro "process is not defined".
+    apiKey = process.env.API_KEY;
+  } catch (e) {
+    console.warn("Ambiente não suporta process.env diretamente");
+  }
+
+  if (!apiKey) {
     console.warn("API Key não encontrada. A usar resposta padrão.");
     return "Obrigada pelo seu amável contacto. Recebemos o seu pedido e entraremos em breve em contacto para desenhar o seu evento de sonho.";
   }
 
   try {
-    // Inicialização PREGUIÇOSA (Lazy): Só acontece quando a função é chamada.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: apiKey });
     
     const prompt = `
       Ajo como a Elsa Cruz, uma organizadora de eventos de luxo e prestígio em Portugal.
