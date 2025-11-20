@@ -309,10 +309,11 @@ const App = () => {
         <div className="relative z-10 text-center px-6 fade-in max-w-4xl">
           <div className="mb-8 flex justify-center">
              {/* HERO: LOGO IMAGEM - LINK DIRETO MELHORADO */}
+             {/* Aumentado de h-40 para h-52 (mobile) e md:h-96 (desktop) */}
              <img 
                src="https://lh3.googleusercontent.com/d/1ZOtb2m-ROuKpDxDejbLL8gEZK7Op8AEj" 
                alt="Logo Elsa Cruz" 
-               className="h-40 w-auto object-contain drop-shadow-2xl"
+               className="h-52 md:h-96 w-auto object-contain drop-shadow-2xl"
                referrerPolicy="no-referrer"
              />
           </div>
@@ -354,11 +355,11 @@ const App = () => {
             <h2 className="font-display text-4xl text-gold-900 mb-8">A Arte de Celebrar</h2>
             <p className="text-stone-600 leading-relaxed mb-6 text-lg">
               Sou a Elsa Cruz, e acredito que cada celebração deve ser um reflexo autêntico da vossa história. 
-              Com anos de experiência em design de eventos, transformo sonhos em realidade através de um planeamento meticuloso e um olhar atento ao design.
+              Com anos de experiência em design de eventos, transformo sonhos em realidade através de um planeamento meticuloso e um olhar atento aos detalhes.
             </p>
             <p className="text-stone-600 leading-relaxed mb-8 text-lg">
-              Seja um casamento íntimo numa quinta no Douro, um batizado delicado ou uma festa de aniversário glamorosa, 
-              o meu compromisso é criar uma atmosfera de sofisticação e beleza intemporal.
+              Seja um casamento íntimo numa quinta, um batizado delicado ou uma festa de aniversário, 
+              o meu compromisso é criar uma atmosfera de sofisticação e beleza.
             </p>
             <div className="flex justify-center md:justify-start space-x-8 text-gold-700 font-display">
               <div className="text-center">
