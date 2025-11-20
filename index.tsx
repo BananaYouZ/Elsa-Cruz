@@ -13,6 +13,9 @@ const EMAILJS_SERVICE_ID = "service_7n4fupk";
 const EMAILJS_TEMPLATE_ID = "template_htcqtak";
 const EMAILJS_PUBLIC_KEY = "X7k_93aJx_aXL6fbA";
 
+// URL DO LOGOTIPO - Substitua este link pelo link da sua imagem real
+const LOGO_URL = "https://placehold.co/300x100/transparent/947230?text=LOGO+ELSA+CRUZ";
+
 // --- TIPOS E DADOS ---
 export enum EventType {
   CASAMENTO = 'Casamento',
@@ -282,7 +285,8 @@ const App = () => {
       <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-sm border-b border-gold-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="font-display text-2xl font-bold text-gold-700 tracking-widest">
-            ELSA CRUZ
+            {/* LOGOTIPO NO HEADER */}
+            <img src={LOGO_URL} alt="Elsa Cruz Eventos" className="h-12 object-contain" />
           </div>
           <div className="hidden md:flex space-x-8 font-sans text-sm uppercase tracking-wider text-stone-600">
             <a href="#sobre" className="hover:text-gold-700 transition-colors">Sobre</a>
@@ -508,7 +512,7 @@ const App = () => {
                     value={formState.phone}
                     onChange={handleInputChange}
                     className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                    placeholder="+351 912 345 678"
+                    placeholder="+351 966 324 250"
                   />
                 </div>
                 <div>
@@ -621,7 +625,10 @@ const App = () => {
       <footer className="bg-stone-900 text-white py-16 border-t border-white/10">
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-12 text-center md:text-left">
           <div>
-            <div className="font-display text-2xl font-bold text-gold-300 mb-6">ELSA CRUZ</div>
+            <div className="font-display text-2xl font-bold text-gold-300 mb-6">
+               {/* LOGOTIPO NO FOOTER */}
+               <img src={LOGO_URL} alt="Elsa Cruz Eventos" className="h-16 object-contain mx-auto md:mx-0" />
+            </div>
             <p className="text-stone-400 text-sm leading-relaxed">
               Criando memórias inesquecíveis através de design excecional e planeamento irrepreensível.
             </p>
@@ -633,24 +640,25 @@ const App = () => {
                 <Mail className="w-4 h-4 text-gold-600" />
                 <span>geral@elsacruz.pt</span>
               </div>
-              <div className="flex items-center justify-center md:justify-start space-x-3 group cursor-pointer hover:text-white">
+              <a 
+                href="https://www.instagram.com/jardim.das.festas/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-center md:justify-start space-x-3 group cursor-pointer hover:text-white"
+              >
                 <Instagram className="w-4 h-4 text-gold-600" />
-                <span>@elsacruzeventos</span>
-              </div>
+                <span>@jardim.das.festas</span>
+              </a>
               <div className="flex items-center justify-center md:justify-start space-x-3 group cursor-pointer hover:text-white">
                 <Phone className="w-4 h-4 text-gold-600" />
-                <span>+351 912 345 678</span>
+                <span>+351 966 324 250</span>
               </div>
             </div>
           </div>
           <div>
-            <h4 className="font-sans text-xs uppercase tracking-widest text-gold-500 mb-6">Áreas</h4>
-            <div className="flex flex-wrap justify-center md:justify-start gap-2">
-              {['Porto', 'Douro', 'Lisboa', 'Algarve'].map(area => (
-                <span key={area} className="text-xs border border-stone-700 px-3 py-1 text-stone-400">
-                  {area}
-                </span>
-              ))}
+            <h4 className="font-sans text-xs uppercase tracking-widest text-gold-500 mb-6">Localização</h4>
+            <div className="text-stone-400 text-sm">
+               Atuamos exclusivamente em todo o <span className="text-gold-300">Algarve</span>.
             </div>
           </div>
         </div>
