@@ -13,9 +13,6 @@ const EMAILJS_SERVICE_ID = "service_7n4fupk";
 const EMAILJS_TEMPLATE_ID = "template_htcqtak";
 const EMAILJS_PUBLIC_KEY = "X7k_93aJx_aXL6fbA";
 
-// URL DO LOGOTIPO - Substitua este link pelo link da sua imagem real
-const LOGO_URL = "https://placehold.co/300x100/transparent/947230?text=LOGO+ELSA+CRUZ";
-
 // --- TIPOS E DADOS ---
 export enum EventType {
   CASAMENTO = 'Casamento',
@@ -70,8 +67,8 @@ const generateConsultationPreview = async (data: EventInquiry): Promise<string> 
     const ai = new GoogleGenAI({ apiKey: apiKey });
     
     const prompt = `
-      Ajo como a Elsa Cruz, uma organizadora de eventos de luxo e prestígio em Portugal.
-      Recebi o seguinte pedido de informações através do meu site exclusivo:
+      Ajo como a Elsa Cruz, uma organizadora de eventos no Algarve, Portugal.
+      Recebi o seguinte pedido de informações através do meu site:
       
       Nome do Cliente: ${data.name}
       Tipo de Evento: ${data.eventType}
@@ -84,15 +81,15 @@ const generateConsultationPreview = async (data: EventInquiry): Promise<string> 
       Notas Adicionais: ${data.details}
 
       Tarefa:
-      Escreve uma resposta curta e muito elegante (máximo 3 parágrafos curtos) dirigida diretamente ao cliente.
+      Escreve uma resposta curta, pessoal e calorosa (máximo 3 parágrafos curtos) dirigida diretamente ao cliente.
       
       Objetivos da resposta:
-      1. Agradecer o contacto com distinção.
-      2. Comentar positivamente a visão/estilo do cliente ("${data.stylePreferences}"), sugerindo brevemente como podemos tornar isso mágico e único.
-      3. Transmitir confiança e exclusividade, terminando com uma nota de que entrarei em contacto brevemente para uma reunião.
+      1. Agradecer o contacto com carinho.
+      2. Comentar positivamente a visão do cliente ("${data.stylePreferences}"), mostrando entusiasmo.
+      3. Transmitir confiança mas de forma próxima (não corporativa), terminando a dizer que ligarei em breve.
 
       Tom de voz:
-      Português de Portugal (PT-PT) impecável, formal mas caloroso ("tu" ou "você" conforme apropriado para luxo, geralmente "você" ou tratamento impessoal elegante), glamoroso e confiante.
+      Português de Portugal (PT-PT). O tom deve ser pessoal, próximo, caloroso e empático, como se estivesse a falar com uma amiga, mas mantendo o profissionalismo e elegância. Evita o "prezado" ou linguagem corporativa excessiva.
     `;
 
     const response = await ai.models.generateContent({
@@ -100,10 +97,10 @@ const generateConsultationPreview = async (data: EventInquiry): Promise<string> 
       contents: prompt,
     });
 
-    return response.text || "Obrigada pelo seu amável contacto. Recebemos o seu pedido e entraremos em breve em contacto para desenhar o seu evento de sonho.";
+    return response.text || "Obrigada pelo teu contacto! Adorei a tua ideia e entrarei em breve em contacto para desenharmos juntas este dia especial.";
   } catch (error) {
     console.error("Error generating response:", error);
-    return "Obrigada pelo seu amável contacto. Recebemos o seu pedido e entraremos em breve em contacto para desenhar o seu evento de sonho.";
+    return "Obrigada pelo seu contacto. Recebemos o seu pedido e entraremos em breve em contacto.";
   }
 };
 
@@ -285,8 +282,8 @@ const App = () => {
       <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-sm border-b border-gold-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="font-display text-2xl font-bold text-gold-700 tracking-widest">
-            {/* LOGOTIPO NO HEADER */}
-            <img src={LOGO_URL} alt="Elsa Cruz Eventos" className="h-12 object-contain" />
+            {/* HEADER: TEXTO APENAS */}
+            ELSA CRUZ
           </div>
           <div className="hidden md:flex space-x-8 font-sans text-sm uppercase tracking-wider text-stone-600">
             <a href="#sobre" className="hover:text-gold-700 transition-colors">Sobre</a>
@@ -310,10 +307,13 @@ const App = () => {
         </div>
 
         <div className="relative z-10 text-center px-6 fade-in max-w-4xl">
-          <div className="mb-4 flex justify-center">
-             <div className="h-16 w-16 border-2 border-white/80 rounded-full flex items-center justify-center">
-                <span className="font-display text-3xl text-white">E</span>
-             </div>
+          <div className="mb-8 flex justify-center">
+             {/* HERO: LOGO IMAGEM */}
+             <img 
+               src="https://drive.google.com/uc?export=view&id=1ZOtb2m-ROuKpDxDejbLL8gEZK7Op8AEj" 
+               alt="Logo Elsa Cruz" 
+               className="h-40 w-auto object-contain drop-shadow-2xl"
+             />
           </div>
           <h1 className="font-display text-5xl md:text-7xl text-white font-medium tracking-wide mb-6 drop-shadow-lg">
             Momentos Eternos
@@ -626,8 +626,8 @@ const App = () => {
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-12 text-center md:text-left">
           <div>
             <div className="font-display text-2xl font-bold text-gold-300 mb-6">
-               {/* LOGOTIPO NO FOOTER */}
-               <img src={LOGO_URL} alt="Elsa Cruz Eventos" className="h-16 object-contain mx-auto md:mx-0" />
+               {/* FOOTER: TEXTO APENAS */}
+               ELSA CRUZ
             </div>
             <p className="text-stone-400 text-sm leading-relaxed">
               Criando memórias inesquecíveis através de design excecional e planeamento irrepreensível.
