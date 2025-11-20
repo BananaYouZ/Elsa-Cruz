@@ -47,11 +47,21 @@ export const SERVICE_OPTIONS = [
 ];
 
 // --- SERVIÇO GEMINI AI (Anteriormente em services/geminiService.ts) ---
-// Nota: Na Vercel, process.env.API_KEY precisa ser configurado nas variáveis de ambiente do projeto.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// A inicialização foi movida para dentro da função generateConsultationPreview
+// para evitar erros de "API Key missing" no arranque da aplicação.
 
 const generateConsultationPreview = async (data: EventInquiry): Promise<string> => {
+  // Se não houver chave configurada (ex: na Vercel antes de configurar),
+  // retornamos a mensagem padrão sem tentar iniciar a IA para não crashar.
+  if (!process.env.API_KEY) {
+    console.warn("API Key não encontrada. A usar resposta padrão.");
+    return "Obrigada pelo seu amável contacto. Recebemos o seu pedido e entraremos em breve em contacto para desenhar o seu evento de sonho.";
+  }
+
   try {
+    // Inicialização PREGUIÇOSA (Lazy): Só acontece quando a função é chamada.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const prompt = `
       Ajo como a Elsa Cruz, uma organizadora de eventos de luxo e prestígio em Portugal.
       Recebi o seguinte pedido de informações através do meu site exclusivo:
