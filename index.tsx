@@ -308,9 +308,9 @@ const App = () => {
 
         <div className="relative z-10 text-center px-6 fade-in max-w-4xl">
           <div className="mb-8 flex justify-center">
-             {/* HERO: LOGO IMAGEM */}
+             {/* HERO: LOGO IMAGEM - LINK DIRETO MELHORADO */}
              <img 
-               src="https://drive.google.com/uc?export=view&id=1ZOtb2m-ROuKpDxDejbLL8gEZK7Op8AEj" 
+               src="https://lh3.googleusercontent.com/d/1ZOtb2m-ROuKpDxDejbLL8gEZK7Op8AEj" 
                alt="Logo Elsa Cruz" 
                className="h-40 w-auto object-contain drop-shadow-2xl"
                referrerPolicy="no-referrer"
