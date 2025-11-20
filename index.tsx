@@ -301,7 +301,7 @@ const App = () => {
             Momentos Eternos
           </h1>
           <p className="font-sans text-lg md:text-xl text-white/90 font-light tracking-widest mb-12 max-w-2xl mx-auto">
-            Planeamento exclusivo de casamentos e eventos em Portugal.
+            Planeamento exclusivo de casamentos e eventos em todo o Algarve.
             <br />
             Elegância. Detalhe. Paixão.
           </p>
