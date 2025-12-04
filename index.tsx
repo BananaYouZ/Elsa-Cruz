@@ -3,15 +3,66 @@ import { createRoot } from 'react-dom/client';
 import { 
   Calendar, Users, MapPin, Star, Heart, Check, 
   Instagram, Mail, Phone, ChevronDown, Loader2, Sparkles,
-  X, ZoomIn, ChevronLeft, ChevronRight
+  X, ZoomIn, ChevronLeft, ChevronRight, Mic, MicOff, Volume2
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, LiveServerMessage, Modality, Blob } from "@google/genai";
 
 // --- CONFIGURAÇÃO ---
 const EMAILJS_SERVICE_ID = "service_7n4fupk"; 
 const EMAILJS_TEMPLATE_ID = "template_htcqtak";
 const EMAILJS_PUBLIC_KEY = "X7k_93aJx_aXL6fbA";
+
+// --- AUDIO UTILS (Live API) ---
+function createBlob(data: Float32Array): Blob {
+  const l = data.length;
+  const int16 = new Int16Array(l);
+  for (let i = 0; i < l; i++) {
+    int16[i] = data[i] * 32768;
+  }
+  return {
+    data: encode(new Uint8Array(int16.buffer)),
+    mimeType: 'audio/pcm;rate=16000',
+  };
+}
+
+function decode(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function encode(bytes: Uint8Array) {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
 
 // --- TIPOS E DADOS ---
 export enum EventType {
@@ -51,8 +102,6 @@ const generateConsultationPreview = async (data: EventInquiry): Promise<string> 
   // Proteção robusta para obter a API Key sem crashar o browser
   let apiKey = undefined;
   try {
-    // O vite.config.ts vai substituir 'process.env.API_KEY' pela string da chave real.
-    // Se falhar, o try/catch impede o erro "process is not defined".
     apiKey = process.env.API_KEY;
   } catch (e) {
     console.warn("Ambiente não suporta process.env diretamente");
@@ -103,6 +152,262 @@ const generateConsultationPreview = async (data: EventInquiry): Promise<string> 
     return "Obrigada pelo seu contacto. Recebemos o seu pedido e entraremos em breve em contacto.";
   }
 };
+
+// --- VOICE WIDGET COMPONENT ---
+const VoiceWidget = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [isTalking, setIsTalking] = useState(false);
+  
+  // Refs para manter estado fora do ciclo de renderização do React e evitar closures antigas
+  const sessionRef = useRef<any>(null);
+  const inputContextRef = useRef<AudioContext | null>(null);
+  const outputContextRef = useRef<AudioContext | null>(null);
+  const nextStartTimeRef = useRef<number>(0);
+  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  
+  // Clean up function
+  const cleanup = useCallback(() => {
+    // Parar sources
+    if (sourcesRef.current) {
+      sourcesRef.current.forEach(source => {
+        try { source.stop(); } catch (e) {}
+      });
+      sourcesRef.current.clear();
+    }
+    
+    // Fechar contextos
+    if (inputContextRef.current) {
+      inputContextRef.current.close();
+      inputContextRef.current = null;
+    }
+    if (outputContextRef.current) {
+      outputContextRef.current.close();
+      outputContextRef.current = null;
+    }
+
+    // Fechar sessão (se existir método close, ou apenas resetar ref)
+    // A API atual não expõe .close() explicitamente na promise, mas limpamos a referência.
+    sessionRef.current = null;
+    
+    setStatus('idle');
+    setIsTalking(false);
+    nextStartTimeRef.current = 0;
+  }, []);
+
+  const connect = async () => {
+    setStatus('connecting');
+    
+    let apiKey = undefined;
+    try {
+      apiKey = process.env.API_KEY;
+    } catch (e) {
+      console.warn("No API Key");
+    }
+
+    if (!apiKey) {
+      alert("API Key não configurada para voz.");
+      setStatus('error');
+      return;
+    }
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: apiKey });
+      
+      // Setup Audio Contexts
+      const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      
+      inputContextRef.current = inputCtx;
+      outputContextRef.current = outputCtx;
+      
+      const outputNode = outputCtx.createGain();
+      outputNode.connect(outputCtx.destination);
+
+      // Get Mic Stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Connect to Live API
+      const sessionPromise = ai.live.connect({
+        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        callbacks: {
+          onopen: () => {
+            console.log('Voice session opened');
+            setStatus('connected');
+            
+            // Process Microphone Input
+            const source = inputCtx.createMediaStreamSource(stream);
+            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            
+            scriptProcessor.onaudioprocess = (e) => {
+              const inputData = e.inputBuffer.getChannelData(0);
+              const pcmBlob = createBlob(inputData);
+              
+              sessionPromise.then((session) => {
+                session.sendRealtimeInput({ media: pcmBlob });
+              });
+            };
+            
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(inputCtx.destination);
+          },
+          onmessage: async (message: LiveServerMessage) => {
+            // Audio Output from Model
+            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+            
+            if (base64Audio) {
+              setIsTalking(true);
+              
+              // Ensure output context is running (browsers sometimes suspend it)
+              if (outputContextRef.current?.state === 'suspended') {
+                await outputContextRef.current.resume();
+              }
+
+              nextStartTimeRef.current = Math.max(
+                nextStartTimeRef.current,
+                outputContextRef.current!.currentTime
+              );
+
+              const audioBuffer = await decodeAudioData(
+                decode(base64Audio),
+                outputContextRef.current!,
+                24000,
+                1
+              );
+
+              const source = outputContextRef.current!.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(outputNode);
+              
+              source.addEventListener('ended', () => {
+                 sourcesRef.current.delete(source);
+                 if (sourcesRef.current.size === 0) {
+                   setIsTalking(false);
+                 }
+              });
+
+              source.start(nextStartTimeRef.current);
+              nextStartTimeRef.current += audioBuffer.duration;
+              sourcesRef.current.add(source);
+            }
+
+            // Handle Interruptions
+            if (message.serverContent?.interrupted) {
+              sourcesRef.current.forEach(src => src.stop());
+              sourcesRef.current.clear();
+              nextStartTimeRef.current = 0;
+              setIsTalking(false);
+            }
+          },
+          onclose: () => {
+            console.log('Voice session closed');
+            cleanup();
+          },
+          onerror: (err) => {
+            console.error('Voice session error:', err);
+            setStatus('error');
+            cleanup();
+          }
+        },
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
+          },
+          systemInstruction: `És a Elsa Cruz, uma organizadora de eventos de luxo e casamentos no Algarve, Portugal.
+          O teu tom é elegante, sofisticado, caloroso e acolhedor (Português de Portugal).
+          Responde de forma concisa mas encantadora.
+          O teu objetivo é ajudar potenciais clientes a tirar dúvidas sobre os serviços, agendar reuniões ou discutir ideias de eventos.
+          Se te perguntarem sobre preços, diz que cada evento é único e sugere agendar uma reunião para um orçamento personalizado.
+          Sê breve nas respostas de voz.`
+        }
+      });
+      
+      sessionRef.current = sessionPromise;
+
+    } catch (err) {
+      console.error("Connection failed", err);
+      setStatus('error');
+    }
+  };
+
+  const toggleVoice = () => {
+    if (isOpen) {
+      setIsOpen(false);
+      cleanup();
+    } else {
+      setIsOpen(true);
+      connect();
+    }
+  };
+
+  return (
+    <>
+      {/* Floating Button */}
+      <button 
+        onClick={toggleVoice}
+        className={`fixed bottom-6 right-6 z-[100] p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 ${
+          isOpen ? 'bg-stone-900 text-gold-500 scale-110' : 'bg-gold-600 text-white hover:bg-gold-700'
+        }`}
+      >
+        {isOpen ? <X className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+      </button>
+
+      {/* Voice Panel */}
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 z-[100] w-80 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gold-200 overflow-hidden animate-fade-in p-6">
+          <div className="text-center">
+            <div className="mb-4 relative h-16 flex items-center justify-center">
+              {status === 'connecting' && (
+                <Loader2 className="w-8 h-8 text-gold-600 animate-spin" />
+              )}
+              {status === 'connected' && (
+                <div className={`transition-all duration-500 ${isTalking ? 'scale-125' : 'scale-100'}`}>
+                  <div className="relative">
+                    <div className={`absolute inset-0 bg-gold-400 rounded-full opacity-20 animate-ping ${isTalking ? 'block' : 'hidden'}`}></div>
+                    <div className="w-12 h-12 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center shadow-lg">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {status === 'error' && (
+                <MicOff className="w-8 h-8 text-red-400" />
+              )}
+            </div>
+
+            <h3 className="font-display text-xl text-stone-900 mb-1">Elsa Cruz AI</h3>
+            <p className="font-sans text-xs uppercase tracking-widest text-stone-500 mb-6">
+              {status === 'connecting' && "A conectar..."}
+              {status === 'connected' && (isTalking ? "A falar..." : "À escuta...")}
+              {status === 'error' && "Indisponível"}
+            </p>
+
+            {status === 'connected' && (
+              <div className="flex justify-center space-x-1 h-8 items-center">
+                {/* Simple Visualizer */}
+                {[...Array(5)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`w-1 bg-gold-400 rounded-full transition-all duration-150 ${
+                      isTalking ? 'animate-pulse h-6' : 'h-2'
+                    }`}
+                    style={{ animationDelay: `${i * 0.1}s` }}
+                  ></div>
+                ))}
+              </div>
+            )}
+            
+            <p className="text-xs text-stone-400 mt-6 italic">
+              Experimente perguntar: "Como organizas casamentos?"
+            </p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 
 // --- COMPONENTE PRINCIPAL ---
 
@@ -290,7 +595,7 @@ const App = () => {
           <img 
             src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop" 
             alt="Elegant wedding table setting" 
-            className="w-full h-full object-cover opacity-90 animate-ken-burns" // Added simple scale effect via class if possible or static for now
+            className="w-full h-full object-cover opacity-90 animate-ken-burns" 
           />
           <div className="absolute inset-0 bg-gradient-to-b from-stone-900/40 via-stone-900/10 to-stone-50/90"></div>
         </div>
@@ -313,10 +618,9 @@ const App = () => {
           </p>
           <button 
             onClick={scrollToForm}
-            className="group relative px-8 py-3 bg-transparent overflow-hidden text-white border border-white/40 shadow-lg hover:border-gold-300 transition-colors duration-300"
+            className="group relative px-10 py-4 bg-white/95 backdrop-blur-sm shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(197,160,89,0.6)] transition-all duration-300 rounded-sm"
           >
-            <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full"></div>
-            <span className="relative text-sm font-sans uppercase tracking-widest group-hover:text-stone-900">Começar a Planear</span>
+            <span className="relative text-sm font-sans uppercase tracking-widest text-stone-900 font-bold group-hover:text-gold-700 transition-colors">Começar a Planear</span>
           </button>
         </div>
 
@@ -338,11 +642,11 @@ const App = () => {
                  <img 
                   src={`https://lh3.googleusercontent.com/d/${ABOUT_IMG_ID}`}
                   alt="Detalhes de planeamento" 
-                  className="w-full h-[600px] object-cover shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000 ease-in-out"
+                  className="w-full h-[600px] object-cover shadow-2xl rounded-lg grayscale hover:grayscale-0 transition-all duration-1000 ease-in-out"
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <div className="absolute top-10 -left-10 w-full h-full border border-gold-300 z-0 hidden md:block"></div>
+              <div className="absolute top-10 -left-10 w-full h-full border border-gold-300 rounded-lg z-0 hidden md:block"></div>
             </div>
             
             <div className="order-1 md:order-2 text-center md:text-left space-y-8">
@@ -411,7 +715,7 @@ const App = () => {
             {filteredGallery.map((item) => (
               <div 
                 key={item.id} 
-                className="group relative aspect-[4/5] bg-stone-200 overflow-hidden cursor-pointer"
+                className="group relative aspect-[4/5] bg-stone-200 overflow-hidden cursor-pointer rounded-lg shadow-md hover:shadow-xl transition-all duration-500"
                 onClick={() => setSelectedImage(item)}
               >
                 <img 
@@ -472,7 +776,7 @@ const App = () => {
               key={selectedImage.id} // Forces animation when image changes
               src={selectedImage.img} 
               alt={selectedImage.title} 
-              className="max-h-[80vh] w-auto object-contain shadow-2xl animate-fade-in"
+              className="max-h-[80vh] w-auto object-contain shadow-2xl animate-fade-in rounded-sm"
               referrerPolicy="no-referrer"
             />
             
@@ -738,6 +1042,9 @@ const App = () => {
           <div className="mt-4 md:mt-0">Design by AI Studio</div>
         </div>
       </footer>
+      
+      {/* Voice Assistant Widget */}
+      <VoiceWidget />
     </div>
   );
 };

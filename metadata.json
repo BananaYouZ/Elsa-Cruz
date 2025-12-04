@@ -1,5 +1,7 @@
 {
   "name": "Elsa Cruz Eventos",
   "description": "Portfolio elegante e plataforma de agendamento para Elsa Cruz, especialista em casamentos e eventos exclusivos.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
