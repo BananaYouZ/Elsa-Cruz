@@ -3,66 +3,15 @@ import { createRoot } from 'react-dom/client';
 import { 
   Calendar, Users, MapPin, Star, Heart, Check, 
   Instagram, Mail, Phone, ChevronDown, Loader2, Sparkles,
-  X, ZoomIn, ChevronLeft, ChevronRight, Mic, MicOff, Volume2
+  X, ZoomIn, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
-import { GoogleGenAI, LiveServerMessage, Modality, Blob } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // --- CONFIGURAÇÃO ---
 const EMAILJS_SERVICE_ID = "service_7n4fupk"; 
 const EMAILJS_TEMPLATE_ID = "template_htcqtak";
 const EMAILJS_PUBLIC_KEY = "X7k_93aJx_aXL6fbA";
-
-// --- AUDIO UTILS (Live API) ---
-function createBlob(data: Float32Array): Blob {
-  const l = data.length;
-  const int16 = new Int16Array(l);
-  for (let i = 0; i < l; i++) {
-    int16[i] = data[i] * 32768;
-  }
-  return {
-    data: encode(new Uint8Array(int16.buffer)),
-    mimeType: 'audio/pcm;rate=16000',
-  };
-}
-
-function decode(base64: string) {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
-}
-
-function encode(bytes: Uint8Array) {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-async function decodeAudioData(
-  data: Uint8Array,
-  ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
-): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
-
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-    }
-  }
-  return buffer;
-}
 
 // --- TIPOS E DADOS ---
 export enum EventType {
@@ -153,262 +102,6 @@ const generateConsultationPreview = async (data: EventInquiry): Promise<string> 
   }
 };
 
-// --- VOICE WIDGET COMPONENT ---
-const VoiceWidget = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
-  const [isTalking, setIsTalking] = useState(false);
-  
-  // Refs para manter estado fora do ciclo de renderização do React e evitar closures antigas
-  const sessionRef = useRef<any>(null);
-  const inputContextRef = useRef<AudioContext | null>(null);
-  const outputContextRef = useRef<AudioContext | null>(null);
-  const nextStartTimeRef = useRef<number>(0);
-  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-  
-  // Clean up function
-  const cleanup = useCallback(() => {
-    // Parar sources
-    if (sourcesRef.current) {
-      sourcesRef.current.forEach(source => {
-        try { source.stop(); } catch (e) {}
-      });
-      sourcesRef.current.clear();
-    }
-    
-    // Fechar contextos
-    if (inputContextRef.current) {
-      inputContextRef.current.close();
-      inputContextRef.current = null;
-    }
-    if (outputContextRef.current) {
-      outputContextRef.current.close();
-      outputContextRef.current = null;
-    }
-
-    // Fechar sessão (se existir método close, ou apenas resetar ref)
-    // A API atual não expõe .close() explicitamente na promise, mas limpamos a referência.
-    sessionRef.current = null;
-    
-    setStatus('idle');
-    setIsTalking(false);
-    nextStartTimeRef.current = 0;
-  }, []);
-
-  const connect = async () => {
-    setStatus('connecting');
-    
-    let apiKey = undefined;
-    try {
-      apiKey = process.env.API_KEY;
-    } catch (e) {
-      console.warn("No API Key");
-    }
-
-    if (!apiKey) {
-      alert("API Key não configurada para voz.");
-      setStatus('error');
-      return;
-    }
-
-    try {
-      const ai = new GoogleGenAI({ apiKey: apiKey });
-      
-      // Setup Audio Contexts
-      const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-      const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      
-      inputContextRef.current = inputCtx;
-      outputContextRef.current = outputCtx;
-      
-      const outputNode = outputCtx.createGain();
-      outputNode.connect(outputCtx.destination);
-
-      // Get Mic Stream
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Connect to Live API
-      const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        callbacks: {
-          onopen: () => {
-            console.log('Voice session opened');
-            setStatus('connected');
-            
-            // Process Microphone Input
-            const source = inputCtx.createMediaStreamSource(stream);
-            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
-            
-            scriptProcessor.onaudioprocess = (e) => {
-              const inputData = e.inputBuffer.getChannelData(0);
-              const pcmBlob = createBlob(inputData);
-              
-              sessionPromise.then((session) => {
-                session.sendRealtimeInput({ media: pcmBlob });
-              });
-            };
-            
-            source.connect(scriptProcessor);
-            scriptProcessor.connect(inputCtx.destination);
-          },
-          onmessage: async (message: LiveServerMessage) => {
-            // Audio Output from Model
-            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-            
-            if (base64Audio) {
-              setIsTalking(true);
-              
-              // Ensure output context is running (browsers sometimes suspend it)
-              if (outputContextRef.current?.state === 'suspended') {
-                await outputContextRef.current.resume();
-              }
-
-              nextStartTimeRef.current = Math.max(
-                nextStartTimeRef.current,
-                outputContextRef.current!.currentTime
-              );
-
-              const audioBuffer = await decodeAudioData(
-                decode(base64Audio),
-                outputContextRef.current!,
-                24000,
-                1
-              );
-
-              const source = outputContextRef.current!.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(outputNode);
-              
-              source.addEventListener('ended', () => {
-                 sourcesRef.current.delete(source);
-                 if (sourcesRef.current.size === 0) {
-                   setIsTalking(false);
-                 }
-              });
-
-              source.start(nextStartTimeRef.current);
-              nextStartTimeRef.current += audioBuffer.duration;
-              sourcesRef.current.add(source);
-            }
-
-            // Handle Interruptions
-            if (message.serverContent?.interrupted) {
-              sourcesRef.current.forEach(src => src.stop());
-              sourcesRef.current.clear();
-              nextStartTimeRef.current = 0;
-              setIsTalking(false);
-            }
-          },
-          onclose: () => {
-            console.log('Voice session closed');
-            cleanup();
-          },
-          onerror: (err) => {
-            console.error('Voice session error:', err);
-            setStatus('error');
-            cleanup();
-          }
-        },
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } }
-          },
-          systemInstruction: `És a Elsa Cruz, uma organizadora de eventos de luxo e casamentos no Algarve, Portugal.
-          O teu tom é elegante, sofisticado, caloroso e acolhedor (Português de Portugal).
-          Responde de forma concisa mas encantadora.
-          O teu objetivo é ajudar potenciais clientes a tirar dúvidas sobre os serviços, agendar reuniões ou discutir ideias de eventos.
-          Se te perguntarem sobre preços, diz que cada evento é único e sugere agendar uma reunião para um orçamento personalizado.
-          Sê breve nas respostas de voz.`
-        }
-      });
-      
-      sessionRef.current = sessionPromise;
-
-    } catch (err) {
-      console.error("Connection failed", err);
-      setStatus('error');
-    }
-  };
-
-  const toggleVoice = () => {
-    if (isOpen) {
-      setIsOpen(false);
-      cleanup();
-    } else {
-      setIsOpen(true);
-      connect();
-    }
-  };
-
-  return (
-    <>
-      {/* Floating Button */}
-      <button 
-        onClick={toggleVoice}
-        className={`fixed bottom-6 right-6 z-[100] p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-105 ${
-          isOpen ? 'bg-stone-900 text-gold-500 scale-110' : 'bg-gold-600 text-white hover:bg-gold-700'
-        }`}
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-      </button>
-
-      {/* Voice Panel */}
-      {isOpen && (
-        <div className="fixed bottom-24 right-6 z-[100] w-80 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gold-200 overflow-hidden animate-fade-in p-6">
-          <div className="text-center">
-            <div className="mb-4 relative h-16 flex items-center justify-center">
-              {status === 'connecting' && (
-                <Loader2 className="w-8 h-8 text-gold-600 animate-spin" />
-              )}
-              {status === 'connected' && (
-                <div className={`transition-all duration-500 ${isTalking ? 'scale-125' : 'scale-100'}`}>
-                  <div className="relative">
-                    <div className={`absolute inset-0 bg-gold-400 rounded-full opacity-20 animate-ping ${isTalking ? 'block' : 'hidden'}`}></div>
-                    <div className="w-12 h-12 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center shadow-lg">
-                      <Sparkles className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {status === 'error' && (
-                <MicOff className="w-8 h-8 text-red-400" />
-              )}
-            </div>
-
-            <h3 className="font-display text-xl text-stone-900 mb-1">Elsa Cruz AI</h3>
-            <p className="font-sans text-xs uppercase tracking-widest text-stone-500 mb-6">
-              {status === 'connecting' && "A conectar..."}
-              {status === 'connected' && (isTalking ? "A falar..." : "À escuta...")}
-              {status === 'error' && "Indisponível"}
-            </p>
-
-            {status === 'connected' && (
-              <div className="flex justify-center space-x-1 h-8 items-center">
-                {/* Simple Visualizer */}
-                {[...Array(5)].map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={`w-1 bg-gold-400 rounded-full transition-all duration-150 ${
-                      isTalking ? 'animate-pulse h-6' : 'h-2'
-                    }`}
-                    style={{ animationDelay: `${i * 0.1}s` }}
-                  ></div>
-                ))}
-              </div>
-            )}
-            
-            <p className="text-xs text-stone-400 mt-6 italic">
-              Experimente perguntar: "Como organizas casamentos?"
-            </p>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-
 // --- COMPONENTE PRINCIPAL ---
 
 // Mock Data for Gallery
@@ -421,6 +114,7 @@ const GALLERY_CATEGORIES = [
 ];
 
 // IDs das imagens do Google Drive
+// Imagem trocada: "1SE4fj_k0QX2PEzz2i90ck6Kb0sYJEQRr" por "1MEpzG65JkcCghUFYxuubUi_ZCn2S4ACx"
 const DRIVE_IMAGES = [
   "1NJmx2EZ-lmsABlxyAuDqzd6EFc8zVBfj", "1nPS93n0fPUaw4kPUDzrwk7khDRdKA3JD",
   "1sOQOYi9ylL0kGnM9dS-q-0vbZS8qGJ2y", "1PUX0EYkDQduMYB2K0wcr7xOLt8Kw5KqH", "1NGepSjQvoQN3rUAf2imtkCDVGSbOnk0X",
@@ -428,7 +122,7 @@ const DRIVE_IMAGES = [
   "1pXDzsuD0_VD8f1ZV6fvZ0dY7kwxHEwYi", "1uPwrp9AyRuVLH0zZNEillm36IM5BZeZz", "1TabnE1JtFXPUcWCcl5YKpZWYQK0O96eS",
   "1xeKniqosUC3wlnZVBeQeH1f2t6JGbSAf", "1KtHL6KlmOhStjMUFQt8dkPpWiOfbmrv9", "1N-C9i03_KzTeMYfSJcM5935eJaMyMj1w",
   "1SUlnUsZFSzfBXLAqZMcLDhDwrqDH4LTS", "1bUhnsHKZrai9lxYaHd3jgOFNKuBR79nl", "1d95e_gO_DlOkJc7YNHRbELrfnqKfPbjj",
-  "1SE4fj_k0QX2PEzz2i90ck6Kb0sYJEQRr", "1G6KSslfAI1noPfKrLMvYN52iTk4fmFF8", "1TnyRV5JY5utWyw9eOGcxWkw7IEVwgaOB",
+  "1MEpzG65JkcCghUFYxuubUi_ZCn2S4ACx", "1G6KSslfAI1noPfKrLMvYN52iTk4fmFF8", "1TnyRV5JY5utWyw9eOGcxWkw7IEVwgaOB",
   "1vb8Wu82AqmESFrDE1qFkMi6isowjMUO7", "1ds5raILndLFalU-aT9pEqwAxaKWyda0-", "1JiWrtIZzMqbJ3_D7mFNRQKhpwFWm_Qf4",
   "1_77cFs8rmMAcBFJJ_2LO03IQvB8qJIOu", "1GeMXrHeh79jdHET3u1Wujc3JFKQvmgEt", "1Btn5a64rFF19J-blNuoGNgptUeYmpVP-",
   "1wgam7f82i9PTATjIrL-WKB5sl5kRXOHV", "1ovLNV_OVhLxEqWfWB-wjJYM7po0ievuw", "1LI8Vg3GszPtVTdK3YowaxBwEBz1L_lUF"
@@ -1042,9 +736,6 @@ const App = () => {
           <div className="mt-4 md:mt-0">Design by AI Studio</div>
         </div>
       </footer>
-      
-      {/* Voice Assistant Widget */}
-      <VoiceWidget />
     </div>
   );
 };
