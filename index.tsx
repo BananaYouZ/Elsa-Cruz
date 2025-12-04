@@ -109,86 +109,44 @@ const generateConsultationPreview = async (data: EventInquiry): Promise<string> 
 // Mock Data for Gallery
 const GALLERY_CATEGORIES = [
   { id: 'all', label: 'Todos' },
-  { id: 'tables', label: 'Decoração de Mesas' },
+  { id: 'tables', label: 'Decoração' },
   { id: 'cakes', label: 'Bolos & Doces' },
-  { id: 'invites', label: 'Convites' },
-  { id: 'favors', label: 'Lembranças' }
+  { id: 'invites', label: 'Detalhes' },
+  { id: 'favors', label: 'Ambiente' }
 ];
 
-const GALLERY_ITEMS = [
-  { 
-    id: 1, 
-    category: 'tables', 
-    img: 'https://images.unsplash.com/photo-1519225421980-715cb0202128?q=80&w=2070&auto=format&fit=crop',
-    title: 'Mesa Imperial Dourada'
-  },
-  { 
-    id: 2, 
-    category: 'cakes', 
-    img: 'https://images.unsplash.com/photo-1535254973040-607b474cb50d?q=80&w=1000&auto=format&fit=crop',
-    title: 'Bolo Minimalista Floral'
-  },
-  { 
-    id: 3, 
-    category: 'invites', 
-    img: 'https://images.unsplash.com/photo-1607190074257-dd4b7af0309f?q=80&w=1000&auto=format&fit=crop',
-    title: 'Stationery Caligrafia'
-  },
-  { 
-    id: 4, 
-    category: 'tables', 
-    img: 'https://images.unsplash.com/photo-1478146896981-b80fe463b330?q=80&w=2070&auto=format&fit=crop',
-    title: 'Centro de Mesa Rústico'
-  },
-  { 
-    id: 5, 
-    category: 'favors', 
-    img: 'https://images.unsplash.com/photo-1549482199-bc1ca6f58502?q=80&w=1000&auto=format&fit=crop',
-    title: 'Lembranças Personalizadas'
-  },
-  { 
-    id: 6, 
-    category: 'cakes', 
-    img: 'https://images.unsplash.com/photo-1623428187969-5da2dcea5ebf?q=80&w=1000&auto=format&fit=crop',
-    title: 'Detalhes em Açúcar'
-  },
-  { 
-    id: 7, 
-    category: 'tables', 
-    img: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=2070&auto=format&fit=crop',
-    title: 'Jantar à Luz das Velas'
-  },
-  { 
-    id: 8, 
-    category: 'invites', 
-    img: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop',
-    title: 'Convite Clássico Lacrado'
-  },
-  { 
-    id: 9, 
-    category: 'favors', 
-    img: 'https://images.unsplash.com/photo-1602665742701-389671bc24c5?q=80&w=1000&auto=format&fit=crop',
-    title: 'Velas Aromáticas'
-  },
-  { 
-    id: 10, 
-    category: 'tables', 
-    img: 'https://images.unsplash.com/photo-1505944357431-27579db4f924?q=80&w=1000&auto=format&fit=crop',
-    title: 'Arranjo Floral Suspenso'
-  },
-  { 
-    id: 11, 
-    category: 'cakes', 
-    img: 'https://images.unsplash.com/photo-1562777717-dc6984f65a63?q=80&w=1000&auto=format&fit=crop',
-    title: 'Bolo Texturizado'
-  },
-  { 
-    id: 12, 
-    category: 'invites', 
-    img: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?q=80&w=1000&auto=format&fit=crop',
-    title: 'Menu Personalizado'
-  }
+// IDs das imagens do Google Drive
+const DRIVE_IMAGES = [
+  "1NJmx2EZ-lmsABlxyAuDqzd6EFc8zVBfj", "1nPS93n0fPUaw4kPUDzrwk7khDRdKA3JD",
+  "1sOQOYi9ylL0kGnM9dS-q-0vbZS8qGJ2y", "1PUX0EYkDQduMYB2K0wcr7xOLt8Kw5KqH", "1NGepSjQvoQN3rUAf2imtkCDVGSbOnk0X",
+  "14_bqzSwNrY169ib-tHcMgyBwT0amZRjb", "198onOBDIZAxu9zvl8AU0uLJZCHTp4iIl", "18mpeFNB3XoUcLeTRNw1ANlJTICh-McSh",
+  "1pXDzsuD0_VD8f1ZV6fvZ0dY7kwxHEwYi", "1uPwrp9AyRuVLH0zZNEillm36IM5BZeZz", "1TabnE1JtFXPUcWCcl5YKpZWYQK0O96eS",
+  "1xeKniqosUC3wlnZVBeQeH1f2t6JGbSAf", "1KtHL6KlmOhStjMUFQt8dkPpWiOfbmrv9", "1N-C9i03_KzTeMYfSJcM5935eJaMyMj1w",
+  "1SUlnUsZFSzfBXLAqZMcLDhDwrqDH4LTS", "1bUhnsHKZrai9lxYaHd3jgOFNKuBR79nl", "1d95e_gO_DlOkJc7YNHRbELrfnqKfPbjj",
+  "1SE4fj_k0QX2PEzz2i90ck6Kb0sYJEQRr", "1G6KSslfAI1noPfKrLMvYN52iTk4fmFF8", "1TnyRV5JY5utWyw9eOGcxWkw7IEVwgaOB",
+  "1vb8Wu82AqmESFrDE1qFkMi6isowjMUO7", "1ds5raILndLFalU-aT9pEqwAxaKWyda0-", "1JiWrtIZzMqbJ3_D7mFNRQKhpwFWm_Qf4",
+  "1_77cFs8rmMAcBFJJ_2LO03IQvB8qJIOu", "1GeMXrHeh79jdHET3u1Wujc3JFKQvmgEt", "1Btn5a64rFF19J-blNuoGNgptUeYmpVP-",
+  "1wgam7f82i9PTATjIrL-WKB5sl5kRXOHV", "1ovLNV_OVhLxEqWfWB-wjJYM7po0ievuw", "1LI8Vg3GszPtVTdK3YowaxBwEBz1L_lUF"
 ];
+
+// Imagem de destaque para a secção Sobre (retirada da lista acima para não repetir ou usada especificamente)
+const ABOUT_IMG_ID = "1f5lg3znspAtpqJtoNEIj3Atmpn1FE0sG";
+
+const TITLES = [
+  "Mesa Exclusiva", "Detalhe Floral", "Ambiente de Sonho", "Celebração Única", 
+  "Pormenor de Design", "Elegância Pura", "Amor nos Detalhes", "Decoração Floral",
+  "Bolo de Casamento", "Luz e Cor", "Memória Eterna", "Toque Pessoal"
+];
+
+const CATEGORIES_CYCLE = ['tables', 'cakes', 'invites', 'favors'];
+
+// Construção da Galeria
+const GALLERY_ITEMS = DRIVE_IMAGES.map((id, index) => ({
+  id: index + 1,
+  category: CATEGORIES_CYCLE[index % CATEGORIES_CYCLE.length],
+  img: `https://lh3.googleusercontent.com/d/${id}`,
+  title: TITLES[index % TITLES.length]
+}));
 
 const App = () => {
   const [formState, setFormState] = useState<EventInquiry>({
@@ -344,9 +302,10 @@ const App = () => {
           <div className="order-2 md:order-1">
             <div className="relative p-4 border border-gold-300/50">
                <img 
-                src="https://images.unsplash.com/photo-1523438885200-e635ba2c371e?q=80&w=988&auto=format&fit=crop" 
+                src={`https://lh3.googleusercontent.com/d/${ABOUT_IMG_ID}`}
                 alt="Detalhes de planeamento" 
                 className="w-full h-[500px] object-cover"
+                referrerPolicy="no-referrer"
               />
               <div className="absolute -bottom-6 -right-6 w-48 h-48 bg-gold-100 -z-10"></div>
             </div>
@@ -413,6 +372,8 @@ const App = () => {
                   src={item.img} 
                   alt={item.title} 
                   className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
                 />
                 <div className="absolute bottom-0 left-0 right-0 p-6 z-20 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                   <div className="flex items-center justify-between text-white">
@@ -437,6 +398,7 @@ const App = () => {
               src={selectedImage.img} 
               alt={selectedImage.title} 
               className="w-full h-full object-contain max-h-[85vh] shadow-2xl"
+              referrerPolicy="no-referrer"
             />
             <div className="mt-4 text-center">
               <h3 className="font-display text-2xl text-white">{selectedImage.title}</h3>
