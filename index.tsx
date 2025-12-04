@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
   Calendar, Users, MapPin, Star, Heart, Check, 
   Instagram, Mail, Phone, ChevronDown, Loader2, Sparkles,
-  X, ZoomIn
+  X, ZoomIn, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { GoogleGenAI } from "@google/genai";
@@ -230,23 +230,54 @@ const App = () => {
     }
   };
 
+  // --- LÓGICA DA GALERIA ---
   const filteredGallery = activeCategory === 'all' 
     ? GALLERY_ITEMS 
     : GALLERY_ITEMS.filter(item => item.category === activeCategory);
 
+  const navigateGallery = useCallback((direction: 'next' | 'prev') => {
+    if (!selectedImage) return;
+    
+    // Encontrar o index na lista filtrada para que a navegação faça sentido para o utilizador
+    const currentIndex = filteredGallery.findIndex(item => item.id === selectedImage.id);
+    if (currentIndex === -1) return;
+
+    let newIndex;
+    if (direction === 'next') {
+      newIndex = (currentIndex + 1) % filteredGallery.length;
+    } else {
+      newIndex = (currentIndex - 1 + filteredGallery.length) % filteredGallery.length;
+    }
+
+    setSelectedImage(filteredGallery[newIndex]);
+  }, [selectedImage, filteredGallery]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedImage) return;
+      
+      if (e.key === 'ArrowRight') navigateGallery('next');
+      if (e.key === 'ArrowLeft') navigateGallery('prev');
+      if (e.key === 'Escape') setSelectedImage(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImage, navigateGallery]);
+
   return (
     <div className="min-h-screen font-serif text-stone-800 bg-stone-50 selection:bg-gold-300 selection:text-gold-900">
       {/* Navigation */}
-      <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-sm border-b border-gold-100 shadow-sm">
+      <nav className="fixed w-full z-50 bg-white/90 backdrop-blur-sm border-b border-gold-100 shadow-sm transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="font-display text-2xl font-bold text-gold-700 tracking-widest">
-            {/* HEADER: TEXTO APENAS */}
+          <div className="font-display text-2xl font-bold text-gold-700 tracking-widest hover:text-gold-900 transition-colors cursor-pointer">
             ELSA CRUZ
           </div>
-          <div className="hidden md:flex space-x-8 font-sans text-sm uppercase tracking-wider text-stone-600">
-            <a href="#sobre" className="hover:text-gold-700 transition-colors">Sobre</a>
-            <a href="#portfolio" className="hover:text-gold-700 transition-colors">Portfólio</a>
-            <button onClick={scrollToForm} className="text-gold-700 font-bold hover:text-gold-900 transition-colors">
+          <div className="hidden md:flex space-x-8 font-sans text-xs uppercase tracking-[0.2em] text-stone-500 font-medium">
+            <a href="#sobre" className="hover:text-gold-700 transition-colors py-2 border-b border-transparent hover:border-gold-300">Sobre</a>
+            <a href="#portfolio" className="hover:text-gold-700 transition-colors py-2 border-b border-transparent hover:border-gold-300">Portfólio</a>
+            <button onClick={scrollToForm} className="text-gold-700 font-bold hover:text-gold-900 transition-colors border border-gold-200 px-4 py-2 hover:bg-gold-50">
               Agendar
             </button>
           </div>
@@ -259,15 +290,14 @@ const App = () => {
           <img 
             src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2070&auto=format&fit=crop" 
             alt="Elegant wedding table setting" 
-            className="w-full h-full object-cover opacity-90"
+            className="w-full h-full object-cover opacity-90 animate-ken-burns" // Added simple scale effect via class if possible or static for now
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-stone-900/40 via-stone-900/20 to-stone-50"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-stone-900/40 via-stone-900/10 to-stone-50/90"></div>
         </div>
 
-        <div className="relative z-10 text-center px-6 fade-in max-w-4xl">
-          <div className="mb-8 flex justify-center">
-             {/* HERO: LOGO IMAGEM - LINK DIRETO MELHORADO */}
-             {/* Aumentado de h-40 para h-52 (mobile) e md:h-96 (desktop) */}
+        <div className="relative z-10 text-center px-6 fade-in max-w-5xl pt-20">
+          <div className="mb-10 flex justify-center transform hover:scale-105 transition-transform duration-700">
+             {/* HERO: LOGO */}
              <img 
                src="https://lh3.googleusercontent.com/d/1ZOtb2m-ROuKpDxDejbLL8gEZK7Op8AEj" 
                alt="Logo Elsa Cruz" 
@@ -275,110 +305,130 @@ const App = () => {
                referrerPolicy="no-referrer"
              />
           </div>
-          <h1 className="font-display text-5xl md:text-7xl text-white font-medium tracking-wide mb-6 drop-shadow-lg">
-            Momentos Eternos
+          <h1 className="font-display text-4xl md:text-6xl text-white font-medium tracking-wider mb-6 drop-shadow-lg leading-tight">
+            Momentos que duram<br/><span className="italic font-serif text-gold-200">para sempre</span>
           </h1>
-          <p className="font-sans text-lg md:text-xl text-white/90 font-light tracking-widest mb-12 max-w-2xl mx-auto">
-            Planeamento exclusivo de casamentos e eventos em todo o Algarve.
-            <br />
-            Elegância. Detalhe. Paixão.
+          <p className="font-sans text-sm md:text-base text-white/90 font-light tracking-[0.2em] mb-12 max-w-xl mx-auto uppercase">
+            Planeamento exclusivo de eventos no Algarve
           </p>
           <button 
             onClick={scrollToForm}
-            className="bg-white/10 backdrop-blur-md border border-white/50 text-white hover:bg-white hover:text-gold-900 px-10 py-4 rounded-sm font-sans uppercase tracking-widest text-sm transition-all duration-300"
+            className="group relative px-8 py-3 bg-transparent overflow-hidden text-white border border-white/40 shadow-lg hover:border-gold-300 transition-colors duration-300"
           >
-            Começar a Planear
+            <div className="absolute inset-0 w-0 bg-white transition-all duration-[250ms] ease-out group-hover:w-full"></div>
+            <span className="relative text-sm font-sans uppercase tracking-widest group-hover:text-stone-900">Começar a Planear</span>
           </button>
         </div>
 
         <div className="absolute bottom-10 w-full flex justify-center animate-bounce">
-          <ChevronDown className="text-white/70 w-8 h-8" />
+          <ChevronDown className="text-stone-400 w-6 h-6" />
         </div>
       </header>
 
-      {/* About Section */}
-      <section id="sobre" className="py-24 px-6 bg-white">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div className="order-2 md:order-1">
-            <div className="relative p-4 border border-gold-300/50">
-               <img 
-                src={`https://lh3.googleusercontent.com/d/${ABOUT_IMG_ID}`}
-                alt="Detalhes de planeamento" 
-                className="w-full h-[500px] object-cover"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute -bottom-6 -right-6 w-48 h-48 bg-gold-100 -z-10"></div>
-            </div>
-          </div>
-          <div className="order-1 md:order-2 text-center md:text-left">
-            <h2 className="font-display text-4xl text-gold-900 mb-8">A Arte de Celebrar</h2>
-            <p className="text-stone-600 leading-relaxed mb-6 text-lg">
-              Sou a Elsa Cruz, e acredito que cada celebração deve ser um reflexo autêntico da vossa história. 
-              Com anos de experiência em design de eventos, transformo sonhos em realidade através de um planeamento meticuloso e um olhar atento aos detalhes.
-            </p>
-            <p className="text-stone-600 leading-relaxed mb-8 text-lg">
-              Seja um casamento íntimo numa quinta, um batizado delicado ou uma festa de aniversário, 
-              o meu compromisso é criar uma atmosfera de sofisticação e beleza.
-            </p>
-            <div className="flex justify-center md:justify-start space-x-8 text-gold-700 font-display">
-              <div className="text-center">
-                <span className="block text-3xl mb-1">50+</span>
-                <span className="text-xs uppercase tracking-widest text-stone-500">Casamentos</span>
+      {/* About Section - More Elegant Layout */}
+      <section id="sobre" className="py-32 px-6 bg-white overflow-hidden">
+        <div className="max-w-7xl mx-auto relative">
+           {/* Decorative elements */}
+           <div className="absolute top-0 left-0 w-64 h-64 bg-stone-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 -z-10"></div>
+           <div className="absolute bottom-0 right-0 w-96 h-96 bg-gold-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 -z-10"></div>
+
+          <div className="grid md:grid-cols-2 gap-20 items-center">
+            <div className="order-2 md:order-1 relative">
+              <div className="relative z-10">
+                 <img 
+                  src={`https://lh3.googleusercontent.com/d/${ABOUT_IMG_ID}`}
+                  alt="Detalhes de planeamento" 
+                  className="w-full h-[600px] object-cover shadow-2xl grayscale hover:grayscale-0 transition-all duration-1000 ease-in-out"
+                  referrerPolicy="no-referrer"
+                />
               </div>
-              <div className="text-center">
-                <span className="block text-3xl mb-1">100%</span>
-                <span className="text-xs uppercase tracking-widest text-stone-500">Dedicação</span>
+              <div className="absolute top-10 -left-10 w-full h-full border border-gold-300 z-0 hidden md:block"></div>
+            </div>
+            
+            <div className="order-1 md:order-2 text-center md:text-left space-y-8">
+              <span className="text-gold-600 font-sans text-xs uppercase tracking-[0.3em]">A Minha Paixão</span>
+              <h2 className="font-display text-5xl text-stone-900 leading-tight">
+                A Arte de <span className="italic text-gold-700">Celebrar</span>
+              </h2>
+              <div className="w-16 h-0.5 bg-gold-300 mx-auto md:mx-0"></div>
+              
+              <p className="text-stone-500 font-light leading-relaxed text-lg">
+                Olá, sou a <strong className="text-stone-800 font-medium">Elsa Cruz</strong>. Acredito que o verdadeiro luxo reside nos detalhes que ninguém esquece. 
+                A minha missão é traduzir a vossa essência numa experiência sensorial única.
+              </p>
+              <p className="text-stone-500 font-light leading-relaxed text-lg">
+                Do Algarve para o mundo, dedico-me a criar ambientes sofisticados, onde a elegância encontra a emoção. 
+                Cada evento é uma "tela em branco" que pinto com flores, luz e alma.
+              </p>
+
+              <div className="pt-8 grid grid-cols-2 gap-8 border-t border-stone-100">
+                <div>
+                   <p className="font-display text-3xl text-gold-800">10+</p>
+                   <p className="text-xs uppercase tracking-widest text-stone-400 mt-2">Anos de Experiência</p>
+                </div>
+                <div>
+                   <p className="font-display text-3xl text-gold-800">Algarve</p>
+                   <p className="text-xs uppercase tracking-widest text-stone-400 mt-2">Região Exclusiva</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Portfolio Highlights */}
-      <section id="portfolio" className="py-24 bg-stone-50">
+      {/* Portfolio - Glamour Upgrade */}
+      <section id="portfolio" className="py-32 bg-stone-50">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="font-sans uppercase tracking-widest text-gold-600 text-sm">O Nosso Trabalho</span>
-            <h2 className="font-display text-4xl text-stone-900 mt-3">Portfólio Selecionado</h2>
+          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+            <div className="max-w-xl">
+              <span className="font-sans uppercase tracking-[0.3em] text-gold-600 text-xs block mb-4">Galeria</span>
+              <h2 className="font-display text-4xl text-stone-900">Histórias Visuais</h2>
+            </div>
+
+            {/* Elegant Filter Tabs */}
+            <div className="flex flex-wrap gap-x-8 gap-y-2">
+              {GALLERY_CATEGORIES.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`relative pb-2 text-sm uppercase tracking-widest transition-all duration-300 ${
+                    activeCategory === category.id
+                      ? 'text-stone-900 font-medium'
+                      : 'text-stone-400 hover:text-gold-600'
+                  }`}
+                >
+                  {category.label}
+                  <span className={`absolute bottom-0 left-0 h-px bg-gold-500 transition-all duration-300 ${
+                    activeCategory === category.id ? 'w-full' : 'w-0'
+                  }`}></span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex flex-wrap justify-center gap-4 mb-12">
-            {GALLERY_CATEGORIES.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setActiveCategory(category.id)}
-                className={`px-6 py-2 rounded-full font-sans text-sm uppercase tracking-wider transition-all duration-300 ${
-                  activeCategory === category.id
-                    ? 'bg-gold-700 text-white shadow-lg'
-                    : 'bg-white text-stone-500 hover:bg-gold-50 border border-stone-200'
-                }`}
-              >
-                {category.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Gallery Grid */}
-          <div className="grid md:grid-cols-3 gap-8 mb-12">
+          {/* Gallery Grid - More Space & Elegance */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGallery.map((item) => (
               <div 
                 key={item.id} 
-                className="group relative h-80 bg-white overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-500"
+                className="group relative aspect-[4/5] bg-stone-200 overflow-hidden cursor-pointer"
                 onClick={() => setSelectedImage(item)}
               >
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors z-10"></div>
                 <img 
                   src={item.img} 
                   alt={item.title} 
-                  className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                  className="w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110"
                   referrerPolicy="no-referrer"
                   loading="lazy"
                 />
-                <div className="absolute bottom-0 left-0 right-0 p-6 z-20 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                  <div className="flex items-center justify-between text-white">
-                    <span className="font-display text-xl">{item.title}</span>
-                    <ZoomIn className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity delay-100" />
+                
+                {/* Elegant Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-8">
+                  <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500 delay-75">
+                    <p className="text-gold-200 text-xs uppercase tracking-widest mb-2">
+                      {GALLERY_CATEGORIES.find(c => c.id === item.category)?.label}
+                    </p>
+                    <h3 className="font-display text-white text-xl tracking-wide">{item.title}</h3>
                   </div>
                 </div>
               </div>
@@ -387,247 +437,305 @@ const App = () => {
         </div>
       </section>
 
-      {/* Lightbox Modal */}
+      {/* Lightbox Modal - Cinematic & Navigable */}
       {selectedImage && (
-        <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-          <button className="absolute top-6 right-6 text-white/70 hover:text-white">
-            <X className="w-10 h-10" />
+        <div 
+          className="fixed inset-0 z-[60] bg-stone-900/95 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-300" 
+          onClick={() => setSelectedImage(null)}
+        >
+          {/* Close Button */}
+          <button className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors p-2 z-50">
+            <X className="w-8 h-8 font-light" />
           </button>
-          <div className="max-w-5xl w-full max-h-[90vh] relative" onClick={e => e.stopPropagation()}>
+
+          {/* Navigation Buttons */}
+          <button 
+            className="absolute left-4 md:left-8 text-white/50 hover:text-gold-400 hover:scale-110 transition-all p-4 z-50 hidden md:block"
+            onClick={(e) => { e.stopPropagation(); navigateGallery('prev'); }}
+          >
+            <ChevronLeft className="w-12 h-12" strokeWidth={1} />
+          </button>
+
+          <button 
+            className="absolute right-4 md:right-8 text-white/50 hover:text-gold-400 hover:scale-110 transition-all p-4 z-50 hidden md:block"
+            onClick={(e) => { e.stopPropagation(); navigateGallery('next'); }}
+          >
+            <ChevronRight className="w-12 h-12" strokeWidth={1} />
+          </button>
+
+          {/* Image Container */}
+          <div 
+            className="max-w-6xl w-full h-full flex flex-col items-center justify-center relative px-8 md:px-20" 
+            onClick={e => e.stopPropagation()}
+          >
             <img 
+              key={selectedImage.id} // Forces animation when image changes
               src={selectedImage.img} 
               alt={selectedImage.title} 
-              className="w-full h-full object-contain max-h-[85vh] shadow-2xl"
+              className="max-h-[80vh] w-auto object-contain shadow-2xl animate-fade-in"
               referrerPolicy="no-referrer"
             />
-            <div className="mt-4 text-center">
-              <h3 className="font-display text-2xl text-white">{selectedImage.title}</h3>
-              <p className="text-white/60 font-sans uppercase tracking-widest text-sm mt-2">
+            
+            <div className="mt-8 text-center animate-fade-in">
+              <h3 className="font-display text-3xl text-white tracking-widest font-light">{selectedImage.title}</h3>
+              <p className="text-gold-400/80 font-sans uppercase tracking-[0.2em] text-xs mt-3">
                 {GALLERY_CATEGORIES.find(c => c.id === selectedImage.category)?.label}
               </p>
             </div>
           </div>
+          
+           {/* Mobile Navigation (Bottom) */}
+           <div className="absolute bottom-10 flex gap-12 md:hidden z-50" onClick={e => e.stopPropagation()}>
+             <button onClick={() => navigateGallery('prev')} className="text-white p-2 border border-white/20 rounded-full">
+                <ChevronLeft className="w-6 h-6" />
+             </button>
+             <button onClick={() => navigateGallery('next')} className="text-white p-2 border border-white/20 rounded-full">
+                <ChevronRight className="w-6 h-6" />
+             </button>
+           </div>
         </div>
       )}
 
       {/* Inquiry Form */}
-      <section ref={formRef} className="py-24 px-6 bg-stone-100" id="contact">
-        <div className="max-w-4xl mx-auto bg-white p-8 md:p-16 shadow-xl border-t-4 border-gold-500">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-3xl text-gold-900">Solicitar Orçamento</h2>
-            <p className="text-stone-500 mt-4 font-light">Conte-me sobre o seu dia especial. Responderei em breve com uma proposta personalizada.</p>
+      <section ref={formRef} className="py-32 px-6 bg-stone-100" id="contact">
+        <div className="max-w-5xl mx-auto bg-white shadow-2xl overflow-hidden flex flex-col md:flex-row">
+          
+          {/* Side Decor */}
+          <div className="hidden md:block w-1/3 bg-stone-900 relative">
+             <div className="absolute inset-0 opacity-40">
+                <img 
+                  src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop" 
+                  className="w-full h-full object-cover grayscale"
+                  alt="Decor"
+                />
+             </div>
+             <div className="relative z-10 p-12 h-full flex flex-col justify-between text-white/80">
+                <div>
+                  <h3 className="font-display text-2xl text-gold-400 mb-4">Vamos Conversar?</h3>
+                  <p className="font-sans font-light text-sm leading-relaxed">
+                    Cada grande evento começa com uma simples conversa. Partilhe a sua visão.
+                  </p>
+                </div>
+                <div className="space-y-4 text-sm font-light">
+                   <p>+351 966 324 250</p>
+                   <p>geral@elsacruz.pt</p>
+                </div>
+             </div>
           </div>
 
-          {aiResponse ? (
-            <div className="bg-gold-50 p-8 border border-gold-200 text-center animate-fade-in">
-              <Sparkles className="w-12 h-12 text-gold-500 mx-auto mb-4" />
-              <h3 className="font-display text-2xl text-gold-900 mb-4">Mensagem Recebida</h3>
-              <p className="text-stone-700 whitespace-pre-line leading-relaxed mb-6">
-                {aiResponse}
-              </p>
-              <button 
-                onClick={() => {
-                  setAiResponse(null);
-                  setFormState({
-                    name: '', email: '', phone: '', eventType: EventType.CASAMENTO,
-                    date: '', location: '', guestCount: 50, budget: '',
-                    stylePreferences: '', servicesNeeded: [], details: ''
-                  });
-                }}
-                className="text-sm font-bold text-gold-700 hover:text-gold-900 uppercase tracking-widest border-b border-gold-300 pb-1"
-              >
-                Enviar novo pedido
-              </button>
+          <div className="flex-1 p-8 md:p-16">
+            <div className="mb-10">
+              <span className="text-xs uppercase tracking-widest text-gold-600">Contacto</span>
+              <h2 className="font-display text-3xl text-stone-900 mt-2">Solicitar Orçamento</h2>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="grid md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Nome Completo</label>
-                  <input 
-                    required
-                    name="name"
-                    value={formState.name}
-                    onChange={handleInputChange}
-                    className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                    placeholder="Seu nome"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Email</label>
-                  <input 
-                    required
-                    type="email"
-                    name="email"
-                    value={formState.email}
-                    onChange={handleInputChange}
-                    className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                    placeholder="seu@email.com"
-                  />
-                </div>
-              </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Telemóvel</label>
-                  <input 
-                    required
-                    name="phone"
-                    value={formState.phone}
-                    onChange={handleInputChange}
-                    className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                    placeholder="+351 966 324 250"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Tipo de Evento</label>
-                  <select 
-                    name="eventType"
-                    value={formState.eventType}
-                    onChange={handleInputChange}
-                    className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                  >
-                    {Object.values(EventType).map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-8">
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Data (Estimada)</label>
-                  <input 
-                    type="date"
-                    name="date"
-                    value={formState.date}
-                    onChange={handleInputChange}
-                    className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Nº Convidados</label>
-                  <input 
-                    type="number"
-                    name="guestCount"
-                    value={formState.guestCount}
-                    onChange={handleInputChange}
-                    className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Orçamento (Opcional)</label>
-                  <input 
-                    name="budget"
-                    value={formState.budget}
-                    onChange={handleInputChange}
-                    className="w-full border-b border-stone-300 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent"
-                    placeholder="Ex: 20.000€"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-stone-500 mb-4">Serviços Necessários</label>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {SERVICE_OPTIONS.map(service => (
-                    <div 
-                      key={service}
-                      onClick={() => handleServiceToggle(service)}
-                      className={`cursor-pointer p-4 border transition-all duration-300 flex items-center space-x-3 ${
-                        formState.servicesNeeded.includes(service) 
-                          ? 'border-gold-500 bg-gold-50 text-gold-900' 
-                          : 'border-stone-200 hover:border-gold-300'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 border flex items-center justify-center ${
-                        formState.servicesNeeded.includes(service) ? 'border-gold-500 bg-gold-500 text-white' : 'border-stone-300'
-                      }`}>
-                        {formState.servicesNeeded.includes(service) && <Check className="w-3 h-3" />}
-                      </div>
-                      <span className="text-sm font-sans">{service}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2">Visão & Detalhes</label>
-                <textarea 
-                  required
-                  name="details"
-                  value={formState.details}
-                  onChange={handleInputChange}
-                  rows={4}
-                  className="w-full border border-stone-300 p-3 focus:border-gold-500 outline-none transition-colors bg-transparent resize-none"
-                  placeholder="Conte-me mais sobre o seu sonho..."
-                />
-              </div>
-
-              <div className="text-center pt-4">
+            {aiResponse ? (
+              <div className="bg-gold-50 p-8 border border-gold-200 text-center animate-fade-in h-full flex flex-col justify-center">
+                <Sparkles className="w-12 h-12 text-gold-500 mx-auto mb-4" />
+                <h3 className="font-display text-2xl text-gold-900 mb-4">Mensagem Recebida</h3>
+                <p className="text-stone-700 whitespace-pre-line leading-relaxed mb-6 font-light">
+                  {aiResponse}
+                </p>
                 <button 
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-gold-700 text-white px-12 py-4 text-sm uppercase tracking-widest hover:bg-gold-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto space-x-2"
+                  onClick={() => {
+                    setAiResponse(null);
+                    setFormState({
+                      name: '', email: '', phone: '', eventType: EventType.CASAMENTO,
+                      date: '', location: '', guestCount: 50, budget: '',
+                      stylePreferences: '', servicesNeeded: [], details: ''
+                    });
+                  }}
+                  className="text-xs font-bold text-gold-700 hover:text-gold-900 uppercase tracking-widest border-b border-gold-300 pb-1 w-max mx-auto"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>A Enviar...</span>
-                    </>
-                  ) : (
-                    <span>Enviar Pedido</span>
-                  )}
+                  Enviar novo pedido
                 </button>
               </div>
-            </form>
-          )}
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="group">
+                    <input 
+                      required
+                      name="name"
+                      value={formState.name}
+                      onChange={handleInputChange}
+                      className="w-full border-b border-stone-200 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent placeholder-transparent text-sm"
+                      id="name"
+                      placeholder="Nome"
+                    />
+                    <label htmlFor="name" className="block text-xs uppercase tracking-widest text-stone-400 -mt-8 group-focus-within:-mt-10 group-focus-within:text-gold-500 transition-all pointer-events-none mb-4">Nome Completo</label>
+                  </div>
+                  <div className="group">
+                    <input 
+                      required
+                      type="email"
+                      name="email"
+                      value={formState.email}
+                      onChange={handleInputChange}
+                      className="w-full border-b border-stone-200 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent placeholder-transparent text-sm"
+                      id="email"
+                      placeholder="Email"
+                    />
+                     <label htmlFor="email" className="block text-xs uppercase tracking-widest text-stone-400 -mt-8 group-focus-within:-mt-10 group-focus-within:text-gold-500 transition-all pointer-events-none mb-4">Email</label>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="group">
+                    <input 
+                      required
+                      name="phone"
+                      value={formState.phone}
+                      onChange={handleInputChange}
+                      className="w-full border-b border-stone-200 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent placeholder-transparent text-sm"
+                      id="phone"
+                      placeholder="Tel"
+                    />
+                    <label htmlFor="phone" className="block text-xs uppercase tracking-widest text-stone-400 -mt-8 group-focus-within:-mt-10 group-focus-within:text-gold-500 transition-all pointer-events-none mb-4">Telemóvel</label>
+                  </div>
+                  <div>
+                    <select 
+                      name="eventType"
+                      value={formState.eventType}
+                      onChange={handleInputChange}
+                      className="w-full border-b border-stone-200 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent text-sm text-stone-600"
+                    >
+                      {Object.values(EventType).map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-8">
+                  <div className="group">
+                    <input 
+                      type="date"
+                      name="date"
+                      value={formState.date}
+                      onChange={handleInputChange}
+                      className="w-full border-b border-stone-200 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent text-stone-500 text-sm"
+                    />
+                  </div>
+                  <div className="group">
+                    <input 
+                      type="number"
+                      name="guestCount"
+                      value={formState.guestCount}
+                      onChange={handleInputChange}
+                      className="w-full border-b border-stone-200 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent placeholder-transparent text-sm"
+                      id="guests"
+                      placeholder="0"
+                    />
+                    <label htmlFor="guests" className="block text-xs uppercase tracking-widest text-stone-400 -mt-8 group-focus-within:-mt-10 group-focus-within:text-gold-500 transition-all pointer-events-none mb-4">Nº Convidados</label>
+                  </div>
+                  <div className="group">
+                    <input 
+                      name="budget"
+                      value={formState.budget}
+                      onChange={handleInputChange}
+                      className="w-full border-b border-stone-200 py-2 focus:border-gold-500 outline-none transition-colors bg-transparent placeholder-transparent text-sm"
+                      id="budget"
+                      placeholder="0"
+                    />
+                    <label htmlFor="budget" className="block text-xs uppercase tracking-widest text-stone-400 -mt-8 group-focus-within:-mt-10 group-focus-within:text-gold-500 transition-all pointer-events-none mb-4">Orçamento</label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-stone-400 mb-4">Serviços Necessários</label>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {SERVICE_OPTIONS.map(service => (
+                      <div 
+                        key={service}
+                        onClick={() => handleServiceToggle(service)}
+                        className={`cursor-pointer px-4 py-3 border transition-all duration-300 flex items-center space-x-3 text-sm ${
+                          formState.servicesNeeded.includes(service) 
+                            ? 'border-gold-500 bg-gold-50 text-gold-900' 
+                            : 'border-stone-100 hover:border-gold-200 text-stone-500'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                          formState.servicesNeeded.includes(service) ? 'border-gold-500 bg-gold-500 text-white' : 'border-stone-300'
+                        }`}>
+                          {formState.servicesNeeded.includes(service) && <Check className="w-2 h-2" />}
+                        </div>
+                        <span className="font-sans font-light">{service}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs uppercase tracking-widest text-stone-400 mb-2">Visão & Detalhes</label>
+                  <textarea 
+                    required
+                    name="details"
+                    value={formState.details}
+                    onChange={handleInputChange}
+                    rows={4}
+                    className="w-full border border-stone-200 p-3 focus:border-gold-500 outline-none transition-colors bg-transparent resize-none text-sm font-light"
+                    placeholder="Conte-me mais sobre o seu sonho..."
+                  />
+                </div>
+
+                <div className="text-right pt-4">
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-stone-900 text-white px-10 py-4 text-xs uppercase tracking-[0.2em] hover:bg-gold-600 transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center space-x-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>A Enviar...</span>
+                      </>
+                    ) : (
+                      <span>Enviar Pedido</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-stone-900 text-white py-16 border-t border-white/10">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-12 text-center md:text-left">
-          <div>
-            <div className="font-display text-2xl font-bold text-gold-300 mb-6">
-               {/* FOOTER: TEXTO APENAS */}
+      {/* Footer - Minimalist */}
+      <footer className="bg-stone-900 text-white/60 py-20 border-t border-white/5 font-light">
+        <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 text-sm">
+          <div className="md:col-span-2">
+            <div className="font-display text-3xl text-white mb-6 tracking-wider">
                ELSA CRUZ
             </div>
-            <p className="text-stone-400 text-sm leading-relaxed">
-              Criando memórias inesquecíveis através de design excecional e planeamento irrepreensível.
+            <p className="max-w-xs leading-relaxed mb-8">
+              Criando memórias inesquecíveis no Algarve através de um design excecional e planeamento irrepreensível.
             </p>
-          </div>
-          <div>
-            <h4 className="font-sans text-xs uppercase tracking-widest text-gold-500 mb-6">Contactos</h4>
-            <div className="space-y-4 text-stone-300">
-              <div className="flex items-center justify-center md:justify-start space-x-3 group cursor-pointer hover:text-white">
-                <Mail className="w-4 h-4 text-gold-600" />
-                <span>geral@elsacruz.pt</span>
-              </div>
-              <a 
-                href="https://www.instagram.com/jardim.das.festas/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center md:justify-start space-x-3 group cursor-pointer hover:text-white"
-              >
-                <Instagram className="w-4 h-4 text-gold-600" />
-                <span>@jardim.das.festas</span>
-              </a>
-              <div className="flex items-center justify-center md:justify-start space-x-3 group cursor-pointer hover:text-white">
-                <Phone className="w-4 h-4 text-gold-600" />
-                <span>+351 966 324 250</span>
-              </div>
+            <div className="flex space-x-6">
+              <a href="https://www.instagram.com/jardim.das.festas/" className="hover:text-gold-400 transition-colors">Instagram</a>
+              <a href="#" className="hover:text-gold-400 transition-colors">Facebook</a>
             </div>
           </div>
+          
           <div>
-            <h4 className="font-sans text-xs uppercase tracking-widest text-gold-500 mb-6">Localização</h4>
-            <div className="text-stone-400 text-sm">
-               Atuamos exclusivamente em todo o <span className="text-gold-300">Algarve</span>.
+            <h4 className="text-white uppercase tracking-widest text-xs mb-6">Contactos</h4>
+            <div className="space-y-4">
+              <a href="mailto:geral@elsacruz.pt" className="block hover:text-white transition-colors">geral@elsacruz.pt</a>
+              <a href="tel:+351966324250" className="block hover:text-white transition-colors">+351 966 324 250</a>
             </div>
+          </div>
+
+          <div>
+             <h4 className="text-white uppercase tracking-widest text-xs mb-6">Legal</h4>
+             <div className="space-y-4">
+                <a href="#" className="block hover:text-white transition-colors">Política de Privacidade</a>
+                <a href="#" className="block hover:text-white transition-colors">Termos e Condições</a>
+             </div>
           </div>
         </div>
-        <div className="mt-16 pt-8 border-t border-white/5 text-center text-stone-600 text-xs">
-          &copy; {new Date().getFullYear()} Elsa Cruz Eventos. Todos os direitos reservados.
+        <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs tracking-widest uppercase">
+          <div>&copy; {new Date().getFullYear()} Elsa Cruz Eventos</div>
+          <div className="mt-4 md:mt-0">Design by AI Studio</div>
         </div>
       </footer>
     </div>
